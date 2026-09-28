@@ -58,7 +58,7 @@ curl -X POST http://localhost:8001/runs -H "Content-Type: application/json" -d '
 
 ## Notes
 
-- The data is randomly, so this shows the pipeline works, not that
+- The data is randomly generated, so this shows the pipeline works, not that
   any of these models are actually good for real finance/healthcare data.
 - `infra/terraform` and `infra/k8s` are written and pass validation, but I haven't
   deployed to a real cloud yet.
