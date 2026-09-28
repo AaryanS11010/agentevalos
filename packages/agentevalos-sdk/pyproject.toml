@@ -1,0 +1,23 @@
+[project]
+name = "agentevalos-sdk"
+version = "0.1.0"
+description = "Shared schemas, OpenTelemetry setup, and MCP client used across AgentEvalOS services"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp>=1.25",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+    # mcp 2.x removed the @server.list_tools()/@server.call_tool() decorator API that
+    # app/mcp/snowflake_tools.py is built on (replaced with add_request_handler); pin
+    # to the 1.x line until that's ported.
+    "mcp>=1.2.0,<2.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agentevalos_sdk*"]

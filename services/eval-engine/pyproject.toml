@@ -1,0 +1,40 @@
+[project]
+name = "eval-engine"
+version = "0.1.0"
+description = "DeepEval/Promptfoo-driven evals, industry-specific evaluators, and tabular model benchmarking against Snowflake datasets"
+requires-python = ">=3.11"
+dependencies = [
+    # agentevalos-sdk is a local monorepo package, not on PyPI, and pip rejects a
+    # relative file:// URL here (non-portable across checkout locations anyway) —
+    # it's installed editable as a separate step by scripts/bootstrap.sh and CI
+    # before this package, so a plain name requirement resolves against it.
+    "agentevalos-sdk",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    # [pandas] extra is required for write_pandas (used by scripts/seed_snowflake.py)
+    # — it needs pyarrow, which isn't pulled in by a bare snowflake-connector-python.
+    "snowflake-connector-python[pandas]>=3.10",
+    "snowflake-snowpark-python>=1.20",
+    "deepeval>=1.1",
+    # DeepEval's AnthropicModel/GPTModel judge backends lazy-import these — see
+    # app/deepeval_suites/agent_regression_suite.py, which picks Anthropic or OpenAI
+    # based on whichever API key is actually set.
+    "anthropic>=0.34",
+    "openai>=1.40",
+    "scikit-learn>=1.5",
+    "xgboost>=2.1",
+    "lightgbm>=4.5",
+    "joblib>=1.4",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

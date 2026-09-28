@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-orchestrator
+  namespace: agentevalos
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: agent-orchestrator }
+  template:
+    metadata:
+      labels: { app: agent-orchestrator }
+    spec:
+      containers:
+        - name: agent-orchestrator
+          image: ghcr.io/agentevalos/agent-orchestrator:latest
+          ports: [{ containerPort: 8001 }]
+          envFrom:
+            - secretRef: { name: agentevalos-secrets }
+            - configMapRef: { name: agentevalos-config }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8001 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8001 }
+            initialDelaySeconds: 15
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-orchestrator
+  namespace: agentevalos
+spec:
+  selector: { app: agent-orchestrator }
+  ports: [{ port: 8001, targetPort: 8001 }]

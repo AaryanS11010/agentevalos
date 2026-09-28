@@ -1,0 +1,10 @@
+**/.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.next
+**/.git
+**/*.egg-info
+.env
+console/.env.local
+infra/terraform/**/.terraform
