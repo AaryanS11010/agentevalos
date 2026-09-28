@@ -1,8 +1,10 @@
 import numpy as np
 from agentevalos_sdk.schemas import IndustryDomain
-
 from app.evaluators.finance.credit_risk import CreditRiskEvaluator
-from app.evaluators.tabular_model_bench import compute_impact_score, score_benchmark_results
+from app.evaluators.tabular_model_bench import (
+    compute_impact_score,
+    score_benchmark_results,
+)
 
 
 def _synthetic_result(model_name: str, seed: int) -> dict:

@@ -1,92 +1,67 @@
 # AgentEvalOS
 
-**AgentEvalOS** is an open-source AgentOps and evaluation framework for enterprises running AI agents on regulated,
-high-stakes tabular data (finance, healthcare). It standardizes how you **instrument** (LangGraph + MCP + OpenTelemetry),
-**benchmark** (DeepEval + Promptfoo + industry-specific evaluators), **red-team**, and **release** agents — with
-warehouse-scale analytics in Snowflake and a reviewer console for humans in the loop.
+A small project I built to answer one question: **which ML model works best for a given
+industry?**
 
-It is built to interoperate with the [Future AGI](https://github.com/future-agi/future-agi) ecosystem
-(`traceAI` OTel instrumentation, `ai-evaluation` metrics, Arize Phoenix) rather than reinvent it — AgentEvalOS focuses
-on the piece those platforms don't own out of the box: a **Snowflake-native evaluation and benchmarking layer** that
-tells you which foundational tabular models (XGBoost, CatBoost, TabPFN, LightGBM, in-house nets, ...) actually move
-the needle for a given regulated industry workload, plus the agent that runs those benchmarks continuously.
+It's an agent (built with LangGraph) that tries a few tabular models (XGBoost,
+LightGBM, logistic regression) against finance and healthcare datasets stored in
+Snowflake, scores each one on accuracy, calibration, and fairness, and ranks them.
 
-## What it does
+## How it works
 
-1. **Instrument** — Every agent run (LangGraph graph execution, MCP tool calls) is traced with OpenTelemetry /
-   OpenInference semantic conventions and exported to Phoenix (or any OTLP backend).
-2. **Evaluate** — `eval-engine` runs LLM-judge evals (DeepEval), deterministic rule-based evals, and
-   **industry-specific evaluators** for finance (credit risk, fraud) and healthcare (clinical risk, readmission)
-   against foundational tabular models.
-3. **Benchmark** — The `tabular_model_bench` agent pulls labeled datasets from Snowflake, runs a pluggable set of
-   foundational tabular models, scores them with industry-appropriate metrics (AUROC, KS-statistic, calibration,
-   subgroup fairness), and writes a ranked leaderboard back to Snowflake — answering "which model is most impactful
-   for this industry, right now."
-4. **Red-team** — Promptfoo-driven adversarial suites (prompt injection, PII leakage, jailbreaks) run in CI as a
-   release gate.
-5. **Release** — Results, traces, and red-team findings surface in a Next.js reviewer console; a Snowflake Native
-   App ships the same benchmarking/scoring logic to run entirely inside a customer's Snowflake account.
+1. **Plan** — pick which models to try for the industry.
+2. **Benchmark** — call Snowflake (through MCP) to run each model and get predictions.
+3. **Score** — send predictions to a second service that scores them on AUROC,
+   calibration error, and a fairness gap, and combines those into one impact score.
+4. **Decide** — stop once a model scores well enough, otherwise try again.
 
-## Architecture
+Everything is traced with OpenTelemetry and shows up in Arize Phoenix. There's also a
+small Next.js page for browsing runs and leaderboards, a DeepEval suite that checks
+the agent's explanations make sense, and a Promptfoo config for basic red-teaming.
 
-```
-                        ┌─────────────────────────┐
-                        │   Reviewer Console       │  React / Next.js
-                        │   (runs, evals, industry │
-                        │    leaderboards)         │
-                        └────────────┬─────────────┘
-                                     │ REST
-        ┌────────────────────────────┼─────────────────────────────┐
-        │                             │                             │
-┌───────▼────────┐           ┌────────▼─────────┐          ┌────────▼────────┐
-│ agent-          │  MCP      │  eval-engine      │ writes   │  Postgres        │
-│ orchestrator    │◄─────────►│  (DeepEval,       │ metadata │  (runs, steps,   │
-│ (FastAPI +      │  tools    │   Promptfoo,      │─────────►│   tool calls,    │
-│  LangGraph)     │           │   industry evals) │          │   eval results)  │
-└───────┬─────────┘           └─────────┬─────────┘          └──────────────────┘
-        │ OpenTelemetry / OpenInference            │ reads/writes (Snowpark)
-        ▼                                          ▼
-┌────────────────────┐                    ┌──────────────────────────┐
-│  OTel Collector →   │                    │   Snowflake               │
-│  Arize Phoenix       │                   │   - eval datasets         │
-└────────────────────┘                    │   - model leaderboard     │
-                                            │   - Snowflake Native App  │
-                                            │     (in-warehouse scoring)│
-                                            └──────────────────────────┘
-```
-
-## Repo layout
+## Project layout
 
 | Path | What |
 |---|---|
-| [`packages/agentevalos-sdk`](packages/agentevalos-sdk) | Shared schemas, OTel setup, MCP client — imported by both services |
-| [`services/agent-orchestrator`](services/agent-orchestrator) | FastAPI + LangGraph service that runs agent workflows and calls MCP tools |
-| [`services/eval-engine`](services/eval-engine) | FastAPI service: DeepEval/Promptfoo evals, industry evaluators, tabular model benchmarking, Snowflake I/O |
-| [`snowflake-native-app`](snowflake-native-app) | Snowflake Native Application — ships benchmarking/scoring as UDFs + Streamlit-in-Snowflake, runs inside the customer's account |
-| [`console`](console) | Next.js reviewer console (runs, evals, industry leaderboards) |
-| [`infra/terraform`](infra/terraform) | Terraform: Snowflake objects, Postgres, Kubernetes cluster |
-| [`infra/k8s`](infra/k8s) | Kustomize manifests for the two services + console + Postgres + OTel collector |
-| [`.github/workflows`](.github/workflows) | CI: lint/test, docker build, terraform plan, red-team gate |
-| [`datasets`](datasets) | Synthetic finance/healthcare dataset specs used for local dev + seeding Snowflake |
-| [`docs`](docs) | Architecture, eval methodology, Snowflake Native App packaging notes |
+| `packages/agentevalos-sdk` | Shared code (schemas, tracing setup, MCP client) used by both services |
+| `services/agent-orchestrator` | The agent (FastAPI + LangGraph) |
+| `services/eval-engine` | Scores model predictions and talks to Snowflake |
+| `console` | Next.js page for viewing runs and leaderboards |
+| `infra/terraform` | Sets up the Snowflake warehouse/database/role |
+| `infra/k8s` | Kubernetes manifests |
+| `datasets` | Notes on what real data would replace the fake seeded data |
 
-## Quickstart (local dev)
+## Running it locally
 
 ```bash
-cp .env.example .env
-./scripts/bootstrap.sh          # creates venvs, installs deps for both services + sdk
+cp .env.example .env        # fill in your Snowflake account + an LLM API key
+./scripts/bootstrap.sh      # sets up venvs + npm install
+python scripts/seed_snowflake.py   # creates tables, trains + uploads the models
 docker compose up -d postgres otel-collector phoenix
-docker compose up agent-orchestrator eval-engine
-cd console && npm install && npm run dev
 ```
 
-Orchestrator: http://localhost:8001/docs · Eval engine: http://localhost:8002/docs · Console: http://localhost:3000 ·
-Phoenix: http://localhost:6006
+Then in separate terminals:
+```bash
+cd services/agent-orchestrator && source .venv/bin/activate && uvicorn app.main:app --reload --port 8001
+cd services/eval-engine && source .venv/bin/activate && uvicorn app.main:app --reload --port 8002
+cd console && npm run dev
+```
 
-## Status
+Try it:
+```bash
+curl -X POST http://localhost:8001/runs -H "Content-Type: application/json" -d '{"industry":"finance"}'
+```
 
-Scaffolding stage — services boot, endpoints and evaluators are stubbed with clear extension points. See
-[`docs/architecture.md`](docs/architecture.md) and [`docs/evals.md`](docs/evals.md) for what's implemented vs. TODO.
+- Console: http://localhost:3000
+- Phoenix traces: http://localhost:6006
+- API docs: http://localhost:8001/docs and http://localhost:8002/docs
+
+## Notes
+
+- The data is fake (randomly generated), so this shows the pipeline works, not that
+  any of these models are actually good for real finance/healthcare data.
+- `infra/terraform` and `infra/k8s` are written and pass validation, but I haven't
+  deployed to a real cloud yet.
 
 ## License
 

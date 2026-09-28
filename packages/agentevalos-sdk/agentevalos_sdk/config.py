@@ -2,10 +2,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Repo-root .env, resolved absolutely so this works regardless of the process's cwd —
-# every documented way to run a service (bootstrap.sh's printed next-steps, docker
-# compose's working_dir, a bare `uvicorn app.main:app` from a service directory) has a
-# different cwd, and a relative ".env" only ever resolves for one of them.
+# Always load the .env file at the repo root, no matter which folder you run from.
 _REPO_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
 
 

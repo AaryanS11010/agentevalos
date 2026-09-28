@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import routes_health, routes_leaderboard, routes_redteam
 from app.config import settings
 
-app = FastAPI(title="AgentEvalOS — Eval Engine", version="0.1.0")
+app = FastAPI(title="AgentEvalOS - Eval Engine")
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,8 +1,4 @@
-"""Endpoints for triggering and inspecting agent runs. POST /runs kicks off the
-LangGraph industry-benchmarking workflow; GET endpoints read run/tool-call history
-back from Postgres for the reviewer console.
-"""
-
+# POST /runs starts the agent. GET endpoints read run history back from Postgres.
 from __future__ import annotations
 
 import uuid

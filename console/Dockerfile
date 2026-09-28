@@ -1,8 +1,4 @@
-# Build context is the repo root (see .github/workflows/docker-build.yml) for
-# consistency with the two Python services, even though this image only needs
-# console/. Multi-stage: full node_modules for `next build`, then a slim
-# runtime image using Next's standalone output (see next.config.js).
-
+# builds the app, then copies just the build output into a smaller final image
 FROM node:20-slim AS builder
 WORKDIR /srv
 COPY console/package.json console/package-lock.json* ./

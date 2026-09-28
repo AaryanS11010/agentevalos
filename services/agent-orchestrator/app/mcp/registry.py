@@ -1,7 +1,4 @@
-"""Process-wide MCP tool registry. Connected once at FastAPI startup, reused by every
-LangGraph run (see app/main.py lifespan and app/graph/nodes.py).
-"""
-
+# Keeps one MCP connection open for the whole app, set up when FastAPI starts.
 from __future__ import annotations
 
 from agentevalos_sdk.mcp_client import MCPToolRegistry, load_server_configs
@@ -26,5 +23,5 @@ async def close_registry() -> None:
 
 async def get_registry() -> MCPToolRegistry:
     if _registry is None:
-        raise RuntimeError("MCP registry not initialized — call init_registry() at app startup")
+        raise RuntimeError("call init_registry() first")
     return _registry

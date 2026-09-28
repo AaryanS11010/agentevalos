@@ -1,17 +1,6 @@
-"""LLM-judge regression suite using DeepEval — catches quality regressions in the
-agent's natural-language planning/explanation output (distinct from the deterministic
-industry evaluators, which score the tabular models themselves).
-
-DeepEval's metrics default to an OpenAI judge model and are "unusable until fixed"
-(see `deepeval diagnose`) without OPENAI_API_KEY — this repo's .env.example only asks
-for ANTHROPIC_API_KEY/OPENAI_API_KEY generically, so both judge_model below and every
-metric explicitly pass model=judge_model to use whichever one is actually set,
-Anthropic first.
-
-Run with: pytest app/deepeval_suites/agent_regression_suite.py
-Wired into CI (see .github/workflows/ci.yml).
-"""
-
+# Uses an LLM as a judge to check the agent's written explanations make sense
+# and match the numbers it was given. Run with:
+#   pytest app/deepeval_suites/agent_regression_suite.py
 from __future__ import annotations
 
 import os
@@ -22,17 +11,16 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
 
 def _judge_model():
+    # DeepEval defaults to an OpenAI judge, so pick whichever key is actually set.
     if os.getenv("ANTHROPIC_API_KEY"):
         from deepeval.models import AnthropicModel
 
-        return AnthropicModel()  # DeepEval's own maintained default model
+        return AnthropicModel()
     if os.getenv("OPENAI_API_KEY"):
         from deepeval.models import GPTModel
 
         return GPTModel()
-    raise RuntimeError(
-        "Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env to run the DeepEval judge suite."
-    )
+    raise RuntimeError("Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env to run this test.")
 
 
 judge_model = _judge_model()
@@ -67,7 +55,7 @@ def test_leaderboard_explanation_is_faithful_to_metrics():
         ),
         context=[
             "XGBoost: auroc=0.79, ks_statistic=0.41, demographic_parity_gap=0.04, impact_score=0.81",
-            "CatBoost: auroc=0.77, ks_statistic=0.39, demographic_parity_gap=0.09, impact_score=0.74",
+            "LightGBM: auroc=0.77, ks_statistic=0.39, demographic_parity_gap=0.09, impact_score=0.74",
         ],
         retrieval_context=[
             "XGBoost: auroc=0.79, ks_statistic=0.41, demographic_parity_gap=0.04, impact_score=0.81",

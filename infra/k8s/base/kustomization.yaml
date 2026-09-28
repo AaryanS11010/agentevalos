@@ -19,3 +19,8 @@ configMapGenerator:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - NEXT_PUBLIC_ORCHESTRATOR_URL=http://agent-orchestrator:8001
       - NEXT_PUBLIC_EVAL_ENGINE_URL=http://eval-engine:8002
+
+secretGenerator:
+  - name: agentevalos-secrets
+    envs:
+      - .env.secrets   # copy from .env.secrets.example and fill in, not committed

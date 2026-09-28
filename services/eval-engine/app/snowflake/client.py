@@ -1,11 +1,5 @@
-"""Snowflake I/O for warehouse-scale eval datasets and the model leaderboard.
-
-Postgres (services/agent-orchestrator/app/db) holds per-run operational metadata;
-Snowflake holds the large, append-only, analytics-friendly tables: labeled benchmark
-datasets, every eval run's metrics, and the ranked model leaderboard. The reviewer
-console and the Snowflake Native App both read the leaderboard table directly.
-"""
-
+# Talks to Snowflake: creates the warehouse/tables if they don't exist yet, and
+# reads/writes the model leaderboard.
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -67,11 +61,7 @@ def _connection_params() -> dict:
 
 @contextmanager
 def get_snowpark_session() -> Iterator[snowflake.snowpark.Session]:  # noqa: F821
-    """Snowpark session for registering stored procedures (see
-    app/snowflake/udf_scoring.py::register) — distinct from get_connection()'s plain
-    connector.Connection, which is enough for the raw-SQL DDL/DML the rest of this
-    module does.
-    """
+    # used to register the stored procedure in udf_scoring.py
     from snowflake.snowpark import Session
 
     session = Session.builder.configs(_connection_params()).create()

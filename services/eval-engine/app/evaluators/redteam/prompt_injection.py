@@ -1,12 +1,4 @@
-"""Thin wrapper that shells out to Promptfoo's redteam CLI and parses results into
-RedTeamFinding records. Used as a CI release gate (see .github/workflows/ci.yml) and
-exposed via POST /redteam/run for on-demand runs from the console.
-
-Promptfoo does the heavy lifting (probe generation, grading); this module just adapts
-its JSON output into AgentEvalOS's shared schema so findings land in the same
-Postgres table / console view as everything else.
-"""
-
+# Runs Promptfoo's red-team CLI and turns the results into RedTeamFinding records.
 from __future__ import annotations
 
 import json

@@ -1,20 +1,8 @@
-"""The core "which model is most industry-impactful" logic.
-
-Given raw benchmark results (predictions from N foundational tabular models against an
-industry dataset), this module:
-  1. picks the right industry evaluator(s) for the domain,
-  2. computes metrics per model,
-  3. combines them into a single `impact_score` so models are rankable,
-  4. returns a leaderboard that agent-orchestrator's LangGraph workflow consumes
-     (see services/agent-orchestrator/app/graph/nodes.py::score_with_eval_engine)
-     and that eval-engine also writes to Snowflake (see app/snowflake/client.py).
-
-`impact_score` is deliberately simple and industry-tunable rather than a black box:
-it's a weighted blend of discrimination power, calibration, and fairness, because
-those are the three axes a model-risk or clinical-governance reviewer actually cares
-about. Swap `INDUSTRY_WEIGHTS` or add a new weighting function per industry as needed.
-"""
-
+# Turns raw model predictions into a ranked leaderboard.
+#
+# For each model: run it through the industry evaluator to get metrics (AUROC,
+# calibration, fairness), then combine those into one "impact_score" so models
+# can be ranked against each other.
 from __future__ import annotations
 
 from typing import Any
@@ -30,11 +18,10 @@ EVALUATORS_BY_INDUSTRY = {
     IndustryDomain.HEALTHCARE: ClinicalRiskEvaluator(),
 }
 
-# discrimination (auroc/ks), calibration (1 - ece/brier), fairness (1 - gap)
+# How much each factor counts toward the final impact_score, per industry.
 INDUSTRY_WEIGHTS = {
     IndustryDomain.FINANCE: {"discrimination": 0.5, "calibration": 0.2, "fairness": 0.3},
     IndustryDomain.HEALTHCARE: {"discrimination": 0.35, "calibration": 0.35, "fairness": 0.3},
-    IndustryDomain.GENERIC: {"discrimination": 0.6, "calibration": 0.4, "fairness": 0.0},
 }
 
 
@@ -46,7 +33,7 @@ def _metric_value(metrics: list, name: str, default: float = 0.0) -> float:
 
 
 def compute_impact_score(industry: IndustryDomain, metrics: list) -> float:
-    weights = INDUSTRY_WEIGHTS.get(industry, INDUSTRY_WEIGHTS[IndustryDomain.GENERIC])
+    weights = INDUSTRY_WEIGHTS[industry]
 
     discrimination = _metric_value(metrics, "auroc", default=0.5)
 
@@ -71,13 +58,10 @@ def compute_impact_score(industry: IndustryDomain, metrics: list) -> float:
 def score_benchmark_results(
     industry: IndustryDomain, dataset_ref: str, results: list[dict[str, Any]]
 ) -> list[ModelLeaderboardEntry]:
-    """`results` is a list of {"model_name": ..., "y_true": [...], "y_pred": [...],
-    "y_score": [...], "sensitive_features": [...]?, "latency_ms": ...} dicts, as returned
-    by the Snowflake MCP tool's run_industry_eval call.
+    """`results` is a list of {"model_name", "y_true", "y_pred", "y_score", ...}
+    dicts, one per model, as returned by the Snowflake tool call.
     """
-    evaluator = EVALUATORS_BY_INDUSTRY.get(industry)
-    if evaluator is None:
-        raise ValueError(f"No evaluator registered for industry={industry}")
+    evaluator = EVALUATORS_BY_INDUSTRY[industry]
 
     leaderboard: list[ModelLeaderboardEntry] = []
     for r in results:

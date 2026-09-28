@@ -1,11 +1,5 @@
-"""Thin async wrapper around the MCP python SDK for connecting agent-orchestrator's
-LangGraph nodes to MCP tool servers (Snowflake data access, industry benchmark tools,
-and any third-party MCP servers an enterprise wants to plug in).
-
-Server definitions live in a YAML file (see services/agent-orchestrator/mcp_servers.yaml)
-so new tool servers can be added without a code change.
-"""
-
+# Connects to MCP tool servers listed in a YAML config file (see mcp_servers.yaml)
+# and gives a simple call_tool() to use them.
 from __future__ import annotations
 
 from contextlib import AsyncExitStack
@@ -32,12 +26,11 @@ def load_server_configs(path: str) -> list[MCPServerConfig]:
 
 
 class MCPToolRegistry:
-    """Connects to every configured MCP server and exposes a flat call_tool() API.
+    """Connects to every server in the config and lets you call their tools.
 
     Usage:
-        registry = MCPToolRegistry(load_server_configs(MCP_CONFIG_PATH))
+        registry = MCPToolRegistry(load_server_configs(path))
         async with registry:
-            tools = await registry.list_tools()
             result = await registry.call_tool("snowflake.run_industry_eval", {...})
     """
 
@@ -46,7 +39,7 @@ class MCPToolRegistry:
         self._sessions: dict[str, ClientSession] = {}
         self._stack = AsyncExitStack()
 
-    async def __aenter__(self) -> "MCPToolRegistry":
+    async def __aenter__(self) -> MCPToolRegistry:
         for cfg in self._configs.values():
             params = StdioServerParameters(command=cfg.command, args=cfg.args, env=cfg.env)
             read, write = await self._stack.enter_async_context(stdio_client(params))
@@ -58,15 +51,8 @@ class MCPToolRegistry:
     async def __aexit__(self, *exc):
         await self._stack.aclose()
 
-    async def list_tools(self) -> dict[str, list[str]]:
-        out: dict[str, list[str]] = {}
-        for name, session in self._sessions.items():
-            resp = await session.list_tools()
-            out[name] = [t.name for t in resp.tools]
-        return out
-
     async def call_tool(self, qualified_name: str, arguments: dict[str, Any]) -> Any:
-        """qualified_name is "<server_name>.<tool_name>", e.g. "snowflake.run_industry_eval"."""
+        # qualified_name looks like "snowflake.run_industry_eval"
         server_name, tool_name = qualified_name.split(".", 1)
         session = self._sessions[server_name]
         return await session.call_tool(tool_name, arguments)

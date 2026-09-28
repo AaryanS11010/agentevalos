@@ -10,7 +10,7 @@ down:
 	docker compose down
 
 test:
-	cd packages/agentevalos-sdk && python -m pytest || true
+	cd packages/agentevalos-sdk && python -m pytest
 	cd services/agent-orchestrator && python -m pytest
 	cd services/eval-engine && python -m pytest
 

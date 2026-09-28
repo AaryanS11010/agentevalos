@@ -19,7 +19,7 @@ console/.env.local
 .env
 *.env.local
 **/snowflake_credentials.json
-infra/k8s/overlays/*/.env.*.secrets
+infra/k8s/base/.env.secrets
 
 # Terraform
 **/.terraform/
@@ -27,7 +27,6 @@ infra/k8s/overlays/*/.env.*.secrets
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
-.terraform.lock.hcl
 
 # OS / editor
 .DS_Store

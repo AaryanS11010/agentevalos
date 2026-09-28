@@ -1,9 +1,5 @@
-"""Credit-risk evaluator for foundational tabular models (default/non-default
-prediction). Metrics chosen to match what a model-risk-management (SR 11-7 style)
-review would expect: discrimination (AUROC, KS), calibration (Brier), and fairness
-across a protected attribute.
-"""
-
+# Scores a model on credit risk (predicting default): how well it separates
+# good vs. bad borrowers, how calibrated it is, and whether it's fair across groups.
 from __future__ import annotations
 
 from typing import Any
@@ -12,7 +8,12 @@ import numpy as np
 from agentevalos_sdk.schemas import EvalMetric, IndustryDomain
 from sklearn.metrics import roc_auc_score
 
-from app.evaluators.base import Evaluator, brier_score, demographic_parity_gap, ks_statistic
+from app.evaluators.base import (
+    Evaluator,
+    brier_score,
+    demographic_parity_gap,
+    ks_statistic,
+)
 
 
 class CreditRiskEvaluator(Evaluator):

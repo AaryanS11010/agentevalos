@@ -2,9 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /srv
 
-# Build context is the repo root (see docker-compose.yml / .github/workflows/docker-build.yml)
-# since this service depends on the local packages/agentevalos-sdk package, which Docker
-# can't COPY from outside the build context.
+# built from the repo root so we can copy the shared sdk package in too
 COPY packages/agentevalos-sdk /packages/agentevalos-sdk
 COPY services/eval-engine /srv
 

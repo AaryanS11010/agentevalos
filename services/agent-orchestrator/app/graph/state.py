@@ -1,25 +1,14 @@
-"""LangGraph state definition for the industry-benchmarking agent.
-
-The graph plans which tabular models + datasets to evaluate for a given industry,
-calls the Snowflake MCP tools to run the benchmark, hands results to eval-engine for
-scoring, and loops until either a confidence threshold is hit or max_iterations is
-reached — that loop is what makes this a durable, stateful agent rather than a single
-prompt-response call.
-"""
-
+# The state that gets passed between nodes in the graph.
 from __future__ import annotations
 
-from typing import Annotated, Any, TypedDict
+from typing import Any, TypedDict
 from uuid import UUID
-
-from langgraph.graph.message import add_messages
 
 
 class AgentState(TypedDict, total=False):
     run_id: UUID
     industry: str
     objective: str
-    messages: Annotated[list, add_messages]
 
     candidate_models: list[str]
     dataset_ref: str | None

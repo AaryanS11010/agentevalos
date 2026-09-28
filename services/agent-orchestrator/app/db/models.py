@@ -1,8 +1,4 @@
-"""SQLAlchemy models for operational metadata. This is the Postgres side of the house —
-fast, transactional, per-run bookkeeping. Warehouse-scale eval datasets and the model
-leaderboard live in Snowflake instead (see services/eval-engine/app/snowflake/client.py).
-"""
-
+# Postgres tables for tracking agent runs and the tool calls they made.
 from __future__ import annotations
 
 import uuid
@@ -21,17 +17,13 @@ class AgentRunRow(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     agent_name: Mapped[str] = mapped_column(String)
-    industry: Mapped[str] = mapped_column(String, default="generic")
+    industry: Mapped[str] = mapped_column(String, default="finance")
     status: Mapped[str] = mapped_column(String, default="pending")
     input: Mapped[dict] = mapped_column(JSON)
     output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    trace_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
 
-    tool_calls: Mapped[list["ToolCallRow"]] = relationship(back_populates="run")
+    tool_calls: Mapped[list[ToolCallRow]] = relationship(back_populates="run")
 
 
 class ToolCallRow(Base):
@@ -44,20 +36,6 @@ class ToolCallRow(Base):
     arguments: Mapped[dict] = mapped_column(JSON)
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
-    error: Mapped[str | None] = mapped_column(String, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     run: Mapped[AgentRunRow] = relationship(back_populates="tool_calls")
-
-
-class EvalResultRow(Base):
-    __tablename__ = "eval_results"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
-    industry: Mapped[str] = mapped_column(String)
-    evaluator: Mapped[str] = mapped_column(String)
-    model_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    metrics: Mapped[list] = mapped_column(JSON)
-    dataset_ref: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

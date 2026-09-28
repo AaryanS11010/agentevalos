@@ -1,13 +1,9 @@
-"""Builds the durable, stateful LangGraph workflow for industry tabular-model
-benchmarking. Uses a Postgres checkpointer so runs survive process restarts and can be
-resumed/replayed — required for anything you'd call "production-quality AgentOps".
-"""
-
+# Builds the LangGraph graph: plan -> run_benchmark -> score -> loop or finish.
 from __future__ import annotations
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
-from app.config import settings
 from app.graph.nodes import (
     finalize,
     plan,
@@ -32,24 +28,6 @@ def build_graph():
     graph.add_conditional_edges("score", should_continue, {"plan": "plan", "finalize": "finalize"})
     graph.add_edge("finalize", END)
 
-    checkpointer = _build_checkpointer()
-    return graph.compile(checkpointer=checkpointer)
-
-
-def _build_checkpointer():
-    """Postgres-backed checkpointer so LangGraph state is durable across restarts.
-
-    Falls back to an in-memory checkpointer if langgraph-checkpoint-postgres isn't
-    installed yet, so `uvicorn app.main:app` still boots during early scaffolding.
-    """
-    try:
-        from langgraph.checkpoint.postgres import PostgresSaver
-
-        saver_cm = PostgresSaver.from_conn_string(settings.database_url)
-        saver = saver_cm.__enter__()
-        saver.setup()
-        return saver
-    except Exception:
-        from langgraph.checkpoint.memory import MemorySaver
-
-        return MemorySaver()
+    # Just keeping state in memory for now. Would need a Postgres checkpointer to
+    # survive a restart, but that's more than this project needs right now.
+    return graph.compile(checkpointer=MemorySaver())

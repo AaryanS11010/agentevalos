@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     await close_registry()
 
 
-app = FastAPI(title="AgentEvalOS — Agent Orchestrator", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="AgentEvalOS - Agent Orchestrator", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

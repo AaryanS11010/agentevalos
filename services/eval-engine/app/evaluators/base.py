@@ -1,8 +1,4 @@
-"""Shared evaluator contract. Industry evaluators (finance/healthcare) and the
-tabular-model benchmark all produce an EvalResult from the shared SDK, so the
-console/Snowflake writer/leaderboard code only needs to know one shape.
-"""
-
+# Base class for a rule-based evaluator that scores model predictions.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -13,12 +9,6 @@ from agentevalos_sdk.schemas import EvalMetric, EvalResult, IndustryDomain
 
 
 class Evaluator(ABC):
-    """Base class for a deterministic, rule-based evaluator over model predictions.
-
-    Subclasses implement `compute_metrics`, given y_true/y_pred/y_score (+ optional
-    sensitive_features for fairness metrics) and return a list of EvalMetric.
-    """
-
     industry: IndustryDomain
     name: str
 
@@ -54,11 +44,12 @@ class Evaluator(ABC):
 
 
 def brier_score(y_true: np.ndarray, y_score: np.ndarray) -> float:
+    """Mean squared error between predicted probability and the actual outcome."""
     return float(np.mean((y_score - y_true) ** 2))
 
 
 def ks_statistic(y_true: np.ndarray, y_score: np.ndarray) -> float:
-    """Kolmogorov-Smirnov statistic — standard in credit-risk model validation."""
+    """Kolmogorov-Smirnov statistic, common in credit-risk model checks."""
     order = np.argsort(y_score)
     y_true_sorted = y_true[order]
     n_pos = y_true_sorted.sum()
@@ -71,9 +62,7 @@ def ks_statistic(y_true: np.ndarray, y_score: np.ndarray) -> float:
 
 
 def demographic_parity_gap(y_pred: np.ndarray, sensitive_features: np.ndarray) -> float:
-    """Max difference in positive-prediction rate across sensitive-feature groups.
-    A coarse fairness gap metric; swap in `fairlearn` for production-grade auditing.
-    """
+    """Biggest difference in positive-prediction rate between groups."""
     groups = np.unique(sensitive_features)
     rates = [y_pred[sensitive_features == g].mean() for g in groups]
     return float(max(rates) - min(rates)) if len(rates) > 1 else 0.0

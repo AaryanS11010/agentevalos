@@ -1,39 +1,9 @@
-"""Snowpark Python UDF/stored-procedure definitions for in-warehouse scoring.
-
-This is the source of truth for the in-warehouse *inference* logic; it is registered
-as a Snowflake stored procedure both by this service (for local/dev deployments where
-eval-engine manages the Snowflake objects) and mirrored by the Snowflake Native App's
-setup_script.sql (for customers who install the app and never let raw data leave
-their account).
-
-Deliberately self-contained (only stdlib + the Anaconda-channel `packages` listed in
-register() below) rather than importing app.evaluators/agentevalos_sdk directly: this
-function is pickled by reference and executed inside Snowflake's remote Python
-sandbox, which only has the Anaconda-channel packages available — not this repo's own
-source, and not agentevalos_sdk's OTEL/FastAPI-instrumentation imports, which have no
-business running there anyway. It returns raw predictions; the industry-specific
-scoring (calibration, fairness, impact score) happens back in eval-engine — see
-app/api/routes_leaderboard.py — which is the same reasoning
-snowflake-native-app/app/python/udfs/run_eval.py already uses for the native app path.
-
-Model inference: `model_name` is loaded from a joblib-serialized, scikit-learn-API
-classifier (`.predict_proba`) staged at `@MODEL_STAGE/{industry}_{model_name}.joblib`
-(relative to the calling session's current database/schema — see
-app/mcp/snowflake_tools.py, which always connects with database/schema set to
-AGENTEVALOS.EVALS). This restricts in-warehouse candidates to models whose
-training/inference packages are available on Snowflake's Anaconda channel — today
-that's scikit-learn, xgboost, and lightgbm (see `register()` PACKAGES below).
-`catboost` and `tabpfn` are deliberately not supported by this path: catboost isn't
-reliably on the Anaconda channel and tabpfn is an in-context learner that needs the
-training set at inference time, not a fit-once artifact — both would need the
-external (non-native-app) `eval-engine`-connects-out deployment mode instead.
-`scripts/seed_snowflake.py` trains and stages the demo models this scaffold ships
-with, and also calls register() to create the stored procedure.
-
-Deploy/redeploy the stored procedure standalone with:
-    python -m app.snowflake.udf_scoring
-"""
-
+# This is registered as a stored procedure that runs INSIDE Snowflake: it loads
+# a saved model file from a stage, scores the dataset, and returns the predictions.
+# It has to be self-contained (no imports from the rest of this app) because
+# Snowflake runs it in its own sandbox and only has stdlib + a few packages.
+#
+# Deploy/redeploy it with: python -m app.snowflake.udf_scoring
 from __future__ import annotations
 
 import json
@@ -55,10 +25,8 @@ def _load_staged_model(session: Session, industry: str, model_name: str):
 
 
 def run_industry_eval_proc(session: Session, industry: str, model_name: str, dataset_ref: str) -> str:
-    """Snowpark stored procedure body: pulls labeled rows for `dataset_ref`, scores
-    them with the staged `model_name` classifier, and returns raw predictions as a
-    JSON string for eval-engine to evaluate downstream. Registered as
-    AGENTEVALOS.EVALS.RUN_INDUSTRY_EVAL in Snowflake.
+    """Runs in Snowflake as AGENTEVALOS.EVALS.RUN_INDUSTRY_EVAL. Loads the dataset,
+    scores it with the staged model, and returns raw predictions as JSON.
     """
     pdf = session.table(dataset_ref).to_pandas()
 
@@ -85,24 +53,13 @@ def run_industry_eval_proc(session: Session, industry: str, model_name: str, dat
 
 
 def register(session: Session) -> None:
-    """Registers run_industry_eval_proc as a Snowflake stored procedure. Called from
-    scripts/seed_snowflake.py during local setup; mirrored in setup_script.sql for the
-    native app deployment path.
-
-    Snowpark pickles the function *by reference* (module + qualified name), not by
-    value — the remote sandbox re-imports `app.snowflake.udf_scoring` to resolve it,
-    so that module (and its package, `app/`) must physically exist there even though
-    its own top-level code has no external imports. `imports` ships just the `app`
-    directory to make that import path resolvable; app/__init__.py and
-    app/snowflake/__init__.py are both empty, so this doesn't drag in anything else
-    (importing a submodule doesn't execute unrelated sibling modules).
-    """
-    from pathlib import Path
-
+    """Registers run_industry_eval_proc as a stored procedure in Snowflake."""
     from snowflake.snowpark.types import StringType
 
     from app.config import settings
 
+    # Snowflake needs this app's source files uploaded so it can find the
+    # function when it re-imports this module to run the procedure.
     app_dir = Path(__file__).resolve().parents[1]
 
     session.sproc.register(

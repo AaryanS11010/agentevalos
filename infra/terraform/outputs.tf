@@ -1,11 +1,7 @@
 output "snowflake_database" {
-  value = module.snowflake.database_name
+  value = snowflake_database.agentevalos.name
 }
 
-output "postgres_endpoint" {
-  value = module.postgres.endpoint
-}
-
-output "eks_cluster_name" {
-  value = module.eks.cluster_name
+output "snowflake_warehouse" {
+  value = snowflake_warehouse.agentevalos.name
 }

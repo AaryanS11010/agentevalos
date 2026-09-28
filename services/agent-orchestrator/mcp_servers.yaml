@@ -1,14 +1,6 @@
-# MCP server registry for agent-orchestrator. Each entry is spawned as a subprocess
-# over stdio; the orchestrator connects to all of them at startup (see app/mcp/registry.py).
-#
-# Add new tool servers here — no code changes needed in the orchestrator.
+# List of MCP tool servers the agent connects to on startup.
 servers:
   snowflake:
     command: python
     args: ["-m", "app.mcp.snowflake_tools"]
     env: {}
-
-  # Example of a third-party MCP server an enterprise might plug in:
-  # filesystem:
-  #   command: npx
-  #   args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]

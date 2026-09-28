@@ -1,10 +1,5 @@
-"""Clinical risk-score evaluator (e.g. sepsis risk, mortality risk). Calibration matters
-even more here than in finance — a miscalibrated risk score directly changes clinical
-decisions — so this evaluator weights calibration and subgroup fairness heavily and
-intentionally does NOT report accuracy, which is a poor metric for skewed clinical
-outcomes.
-"""
-
+# Scores a model on clinical risk prediction. Calibration matters a lot here
+# since a miscalibrated risk score can change a clinical decision.
 from __future__ import annotations
 
 from typing import Any

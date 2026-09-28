@@ -3,13 +3,12 @@ export default function OverviewPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">AgentEvalOS</h1>
       <p className="text-slate-400 max-w-2xl">
-        Instrument, benchmark, red-team, and release AI agents. Use{" "}
+        An agent that benchmarks ML models for finance and healthcare. Go to{" "}
         <a href="/runs" className="underline">
           Runs
         </a>{" "}
-        to trigger and inspect LangGraph agent executions, and the industry pages to see
-        which foundational tabular models rank highest for finance and healthcare
-        workloads.
+        to start one, or check the Finance/Healthcare pages to see how models have
+        ranked so far.
       </p>
     </div>
   );

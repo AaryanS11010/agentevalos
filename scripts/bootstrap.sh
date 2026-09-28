@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Sets up local dev environment: per-service venvs + the shared SDK installed
-# editable into each, plus console node_modules. Idempotent — safe to re-run.
+# Sets up everything: a venv for each Python service, and npm install for the console.
+# Safe to run more than once.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

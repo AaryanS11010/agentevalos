@@ -1,7 +1,4 @@
-"""Endpoints backing the agent-orchestrator's LangGraph `score_with_eval_engine` node,
-plus read endpoints the reviewer console uses to render the industry leaderboards.
-"""
-
+# POST /score scores raw predictions. GET /leaderboard reads results back from Snowflake.
 from __future__ import annotations
 
 from typing import Any
@@ -28,8 +25,7 @@ def score(req: ScoreRequest) -> dict:
     try:
         write_leaderboard(leaderboard)
     except Exception:
-        # Snowflake may not be configured yet in local/dev scaffolding — scoring should
-        # still succeed so the LangGraph run can complete.
+        # don't fail the whole request just because the Snowflake write failed
         pass
     return {"leaderboard": [e.model_dump(mode="json") for e in leaderboard]}
 
