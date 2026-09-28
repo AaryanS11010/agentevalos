@@ -31,6 +31,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
+[tool.ruff.lint]
+# B008: FastAPI's Depends(...) in a default argument is the framework's documented
+# pattern, not the mutable-default footgun this rule is meant to catch.
+ignore = ["B008"]
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

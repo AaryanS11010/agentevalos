@@ -1,6 +1,7 @@
 # POST /score scores raw predictions. GET /leaderboard reads results back from Snowflake.
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from agentevalos_sdk.schemas import IndustryDomain
@@ -11,6 +12,7 @@ from app.evaluators.tabular_model_bench import score_benchmark_results
 from app.snowflake.client import read_leaderboard, write_leaderboard
 
 router = APIRouter(prefix="/benchmarks/industry", tags=["benchmarks"])
+logger = logging.getLogger(__name__)
 
 
 class ScoreRequest(BaseModel):
@@ -26,7 +28,7 @@ def score(req: ScoreRequest) -> dict:
         write_leaderboard(leaderboard)
     except Exception:
         # don't fail the whole request just because the Snowflake write failed
-        pass
+        logger.exception("failed to write leaderboard to Snowflake")
     return {"leaderboard": [e.model_dump(mode="json") for e in leaderboard]}
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 import yaml
 from mcp import ClientSession, StdioServerParameters
@@ -39,7 +39,7 @@ class MCPToolRegistry:
         self._sessions: dict[str, ClientSession] = {}
         self._stack = AsyncExitStack()
 
-    async def __aenter__(self) -> MCPToolRegistry:
+    async def __aenter__(self) -> Self:
         for cfg in self._configs.values():
             params = StdioServerParameters(command=cfg.command, args=cfg.args, env=cfg.env)
             read, write = await self._stack.enter_async_context(stdio_client(params))
