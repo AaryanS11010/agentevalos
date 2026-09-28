@@ -1,8 +1,5 @@
 # AgentEvalOS
 
-A small project I built to answer one question: **which ML model works best for a given
-industry?**
-
 It's an agent (built with LangGraph) that tries a few tabular models (XGBoost,
 LightGBM, logistic regression) against finance and healthcare datasets stored in
 Snowflake, scores each one on accuracy, calibration, and fairness, and ranks them.
@@ -47,7 +44,7 @@ cd services/eval-engine && source .venv/bin/activate && uvicorn app.main:app --r
 cd console && npm run dev
 ```
 
-Try it:
+Running it:
 ```bash
 curl -X POST http://localhost:8001/runs -H "Content-Type: application/json" -d '{"industry":"finance"}'
 ```
