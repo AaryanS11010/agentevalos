@@ -15,7 +15,7 @@ The same task is built two ways so they can be compared:
 | Data leaving Snowflake per call | 59,163 bytes (every row's prediction) | about 320 bytes (summary metrics) |
 
 Measured on one real run each. The Cortex path took roughly 20 to 30 seconds per question;
-I didn't time the LangGraph path.
+the LangGraph path wasn't timed.
 
 ## Quick start
 
@@ -28,7 +28,7 @@ Docker is optional.
 cp .env.example .env     # fill in SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD
 ./scripts/bootstrap.sh   # creates a .venv per package and runs npm install
 source services/eval-engine/.venv/bin/activate
-python scripts/seed_snowflake.py   # tables, fake data, trained models, stored procedures
+python scripts/seed_snowflake.py   # tables, generated data, trained models, stored procedures
 ```
 
 **2. Check it works: the evals** (the fastest way to see everything run; needs the Cortex setup below)
@@ -122,13 +122,13 @@ any model is good on real data. The live suite needs a Snowflake account, so it 
 
 ## Notes on the Cortex Agents SDK (v0.0.3, preview)
 
-What I ran into, not general claims:
+Observed while building this, not general claims:
 
 - **Setup has real friction.** A token, a network policy (Snowflake refuses the token without
   one), a role with Cortex access, and grants on the warehouse, schema and procedure. Each
   missing piece gave a different error.
 - **Tools are called with named arguments.** Snowpark names parameters `arg1, arg2` by default,
-  so calls failed until I registered with `preserve_parameter_names=True`.
+  so calls failed until the procedures were registered with `preserve_parameter_names=True`.
 - **`instructions` must be an object** (`orchestration`, `response`). A string gives "invalid
   payload" without naming the field.
 - **Access errors appear at run time.** The agent accepted tools it couldn't reach, then
