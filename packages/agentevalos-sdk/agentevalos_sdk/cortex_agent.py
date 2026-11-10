@@ -1,6 +1,4 @@
-# Runs the benchmarking agent on Snowflake Cortex Agents (the snowflake-cortex-agent-sdk
-# package). The agent's only tool is the RUN_INDUSTRY_METRICS stored procedure, so
-# the model scoring happens inside Snowflake and only a small summary comes back.
+# Runs the benchmarking agent on Snowflake Cortex Agents; its only tool is RUN_INDUSTRY_METRICS
 from __future__ import annotations
 
 import json

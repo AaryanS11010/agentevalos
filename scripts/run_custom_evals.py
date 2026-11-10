@@ -1,11 +1,4 @@
-# Runs the custom evals against the real Cortex agent in your Snowflake account.
-# It costs a few warehouse seconds and a few model calls per run.
-#
-# Usage (from the eval-engine venv): python scripts/run_custom_evals.py
-#
-# Ground truth is computed independently of the agent: raw predictions come back
-# through the old RUN_INDUSTRY_EVAL procedure and are scored with the eval-engine's own
-# code, which is a different implementation from the metrics procedure the agent uses.
+# Runs the custom evals live against the Cortex agent (run from the eval-engine venv)
 from __future__ import annotations
 
 import json
@@ -63,8 +56,7 @@ def ground_truth(industry: str) -> tuple[dict, int, dict]:
 
 
 def check_scope_backstop() -> CheckResult:
-    """The agent refuses out-of-scope datasets on its own, but that is only a prompt.
-    This calls the procedure directly to check Snowflake enforces the allowlist too."""
+    """The agent refuses on its own, but that is only a prompt; check Snowflake enforces the allowlist too."""
     name = "scope_backstop"
     with get_connection() as conn:
         try:
@@ -108,8 +100,7 @@ def main() -> int:
     for scope_name, name, passed, detail in results:
         print(f"{'PASS' if passed else 'FAIL'}  {scope_name:10} {name:{width}}  {detail}")
 
-    # negative control: the LangGraph path returns raw predictions, so the residency
-    # eval should flag it. If this ever passes, the eval has stopped working.
+    # negative control: the LangGraph path returns raw rows, so the residency check must fail
     legacy = AgentRun("legacy", "", [ToolCall("RUN_INDUSTRY_EVAL", {}, output=truth["finance"][2])])
     control = check_data_residency(legacy)
     print(f"{'OK  ' if not control.passed else 'BAD '} negative control: residency check on the LangGraph path -> "

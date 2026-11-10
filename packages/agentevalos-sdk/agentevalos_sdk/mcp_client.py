@@ -1,5 +1,4 @@
-# Connects to MCP tool servers listed in a YAML config file (see mcp_servers.yaml)
-# and gives a simple call_tool() to use them.
+# Connects to the MCP servers in mcp_servers.yaml and exposes call_tool()
 from __future__ import annotations
 
 from contextlib import AsyncExitStack
@@ -26,13 +25,7 @@ def load_server_configs(path: str) -> list[MCPServerConfig]:
 
 
 class MCPToolRegistry:
-    """Connects to every server in the config and lets you call their tools.
-
-    Usage:
-        registry = MCPToolRegistry(load_server_configs(path))
-        async with registry:
-            result = await registry.call_tool("snowflake.run_industry_eval", {...})
-    """
+    """Connects to every configured MCP server and lets you call their tools."""
 
     def __init__(self, configs: list[MCPServerConfig]):
         self._configs = {c.name: c for c in configs}

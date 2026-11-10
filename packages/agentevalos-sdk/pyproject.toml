@@ -9,9 +9,7 @@ dependencies = [
     "opentelemetry-sdk>=1.25",
     "opentelemetry-exporter-otlp>=1.25",
     "opentelemetry-instrumentation-fastapi>=0.46b0",
-    # mcp 2.x removed the @server.list_tools()/@server.call_tool() decorator API that
-    # app/mcp/snowflake_tools.py is built on (replaced with add_request_handler); pin
-    # to the 1.x line until that's ported.
+    # mcp 2.x removed the decorator API that snowflake_tools.py uses
     "mcp>=1.2.0,<2.0",
 ]
 

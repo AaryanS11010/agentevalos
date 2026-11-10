@@ -37,3 +37,6 @@ infra/k8s/base/.env.secrets
 dist/
 build/
 *.log
+
+# local SQLite databases
+*.db

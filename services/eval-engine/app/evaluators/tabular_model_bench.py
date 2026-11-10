@@ -1,8 +1,4 @@
-# Turns raw model predictions into a ranked leaderboard.
-#
-# For each model: run it through the industry evaluator to get metrics (AUROC,
-# calibration, fairness), then combine those into one "impact_score" so models
-# can be ranked against each other.
+# Scores each model with its industry evaluator and combines the metrics into one impact_score
 from __future__ import annotations
 
 from typing import Any
@@ -58,9 +54,7 @@ def compute_impact_score(industry: IndustryDomain, metrics: list) -> float:
 def score_benchmark_results(
     industry: IndustryDomain, dataset_ref: str, results: list[dict[str, Any]]
 ) -> list[ModelLeaderboardEntry]:
-    """`results` is a list of {"model_name", "y_true", "y_pred", "y_score", ...}
-    dicts, one per model, as returned by the Snowflake tool call.
-    """
+    """Scores one dict of raw predictions per model and returns them ranked by impact_score."""
     evaluator = EVALUATORS_BY_INDUSTRY[industry]
 
     leaderboard: list[ModelLeaderboardEntry] = []

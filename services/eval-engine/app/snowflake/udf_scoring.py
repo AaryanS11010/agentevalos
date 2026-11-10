@@ -1,16 +1,4 @@
-# Two stored procedures that run INSIDE Snowflake. Both load a saved model file from
-# a stage and score a dataset:
-#
-#   RUN_INDUSTRY_EVAL     returns the raw predictions (one entry per row). Used by the
-#                         LangGraph agent, which scores them in the eval-engine.
-#   RUN_INDUSTRY_METRICS  returns only a small summary (AUROC, calibration, fairness,
-#                         impact score). Used by the Cortex agent, so no row-level
-#                         data ever leaves Snowflake.
-#
-# They have to be self-contained (no imports from the rest of this app) because
-# Snowflake runs them in its own sandbox and only has stdlib + a few packages.
-#
-# Deploy/redeploy them with: python -m app.snowflake.udf_scoring
+# Snowflake stored procedures (self-contained; deploy with: python -m app.snowflake.udf_scoring)
 from __future__ import annotations
 
 import json
@@ -21,13 +9,10 @@ from snowflake.snowpark import Session
 
 RESERVED_COLUMNS = {"LABEL", "SENSITIVE_GROUP"}
 
-# The only datasets the metrics procedure will touch. Enforced here, in the warehouse,
-# so an agent can't be talked into scoring anything else.
+# the only datasets the metrics procedure will touch (enforced in the warehouse)
 ALLOWED_DATASETS = {"FINANCE.BENCHMARK_DATASET", "HEALTHCARE.BENCHMARK_DATASET"}
 
-# Must match INDUSTRY_WEIGHTS in app/evaluators/tabular_model_bench.py and the
-# fairness thresholds in the industry evaluators. A custom eval (metric_parity in
-# agentevalos_sdk/custom_evals.py) checks that the two stay in agreement.
+# keep in sync with tabular_model_bench.py; the metric_parity eval checks it
 IMPACT_WEIGHTS = {
     "finance": {"discrimination": 0.5, "calibration": 0.2, "fairness": 0.3},
     "healthcare": {"discrimination": 0.35, "calibration": 0.35, "fairness": 0.3},
@@ -72,9 +57,7 @@ def run_industry_eval_proc(session: Session, industry: str, model_name: str, dat
 
 
 def run_industry_metrics_proc(session: Session, industry: str, model_name: str, dataset_ref: str) -> str:
-    """AGENTEVALOS.EVALS.RUN_INDUSTRY_METRICS: scores the model inside Snowflake and
-    returns only aggregate numbers as JSON. Never returns row-level data.
-    """
+    """AGENTEVALOS.EVALS.RUN_INDUSTRY_METRICS: scores inside Snowflake and returns aggregates only."""
     import numpy as np
     from sklearn.calibration import calibration_curve
     from sklearn.metrics import roc_auc_score
@@ -141,8 +124,7 @@ def register(session: Session) -> None:
 
     from app.config import settings
 
-    # Snowflake needs this app's source files uploaded so it can find the
-    # functions when it re-imports this module to run the procedures.
+    # Snowflake re-imports this module to run the procedures, so upload the app's files
     app_dir = Path(__file__).resolve().parents[1]
     schema = f"{settings.snowflake_database}.{settings.snowflake_schema}"
 
@@ -160,8 +142,7 @@ def register(session: Session) -> None:
             is_permanent=True,
             stage_location=f"@{schema}.UDF_STAGE",
             replace=True,
-            # Cortex calls tools with named arguments (INDUSTRY, MODEL_NAME, ...), but
-            # Snowpark names parameters arg1, arg2, ... unless told to keep ours.
+            # Cortex calls tools by argument name; Snowpark would otherwise name them arg1, arg2
             preserve_parameter_names=True,
         )
 
@@ -182,7 +163,7 @@ if __name__ == "__main__":
 
     schema = f"{settings.snowflake_database}.{settings.snowflake_schema}"
     with get_snowpark_session() as session:
-        # Snowpark can reuse a stale upload of this app's files, so clear the stage first.
+        # Snowpark can reuse a stale upload, so clear the stage first
         session.sql(f"REMOVE @{schema}.UDF_STAGE").collect()
         register(session)
         grant_to_agent_role(session)

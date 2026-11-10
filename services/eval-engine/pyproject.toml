@@ -4,25 +4,19 @@ version = "0.1.0"
 description = "DeepEval/Promptfoo-driven evals, industry-specific evaluators, and tabular model benchmarking against Snowflake datasets"
 requires-python = ">=3.11"
 dependencies = [
-    # agentevalos-sdk is a local monorepo package, not on PyPI, and pip rejects a
-    # relative file:// URL here (non-portable across checkout locations anyway) —
-    # it's installed editable as a separate step by scripts/bootstrap.sh and CI
-    # before this package, so a plain name requirement resolves against it.
+    # installed editable by bootstrap.sh and CI first (not on PyPI)
     "agentevalos-sdk",
-    # Snowflake Cortex Agents client (preview, pre-1.0): see agentevalos_sdk/cortex_agent.py
+    # Snowflake Cortex Agents client (preview)
     "snowflake-cortex-agent-sdk>=0.0.3",
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
-    # [pandas] extra is required for write_pandas (used by scripts/seed_snowflake.py)
-    # — it needs pyarrow, which isn't pulled in by a bare snowflake-connector-python.
+    # the [pandas] extra is needed by write_pandas (it pulls in pyarrow)
     "snowflake-connector-python[pandas]>=3.10",
     "snowflake-snowpark-python>=1.20",
     "deepeval>=1.1",
-    # DeepEval's AnthropicModel/GPTModel judge backends lazy-import these — see
-    # app/deepeval_suites/agent_regression_suite.py, which picks Anthropic or OpenAI
-    # based on whichever API key is actually set.
+    # DeepEval's judge backends import these
     "anthropic>=0.34",
     "openai>=1.40",
     "scikit-learn>=1.5",

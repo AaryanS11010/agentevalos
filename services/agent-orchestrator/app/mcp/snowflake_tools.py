@@ -1,6 +1,4 @@
-# A small MCP server that gives the agent one tool: run a model against a
-# Snowflake dataset and get the predictions back.
-# Run by itself for testing: python -m app.mcp.snowflake_tools
+# MCP server with one tool: run a model on a Snowflake dataset
 from __future__ import annotations
 
 import json

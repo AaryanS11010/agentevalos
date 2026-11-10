@@ -1,5 +1,4 @@
-# Scores a model on clinical risk prediction. Calibration matters a lot here
-# since a miscalibrated risk score can change a clinical decision.
+# Scores clinical-risk models (calibration matters most here)
 from __future__ import annotations
 
 from typing import Any

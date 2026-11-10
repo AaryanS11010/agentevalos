@@ -28,6 +28,5 @@ def build_graph():
     graph.add_conditional_edges("score", should_continue, {"plan": "plan", "finalize": "finalize"})
     graph.add_edge("finalize", END)
 
-    # Just keeping state in memory for now. Would need a Postgres checkpointer to
-    # survive a restart, but that's more than this project needs right now.
+    # state lives in memory, so it doesn't survive a restart
     return graph.compile(checkpointer=MemorySaver())

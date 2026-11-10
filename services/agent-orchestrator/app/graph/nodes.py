@@ -1,5 +1,4 @@
-# The 4 steps of the agent: plan what to test, run the benchmark, score it,
-# then decide whether to stop or go again.
+# The four agent steps: plan, benchmark, score, decide
 from __future__ import annotations
 
 import json
@@ -12,8 +11,7 @@ from app.config import settings
 from app.graph.state import AgentState
 from app.mcp.registry import get_registry
 
-# Models to try for each industry. Has to match what scripts/seed_snowflake.py
-# trained and staged in Snowflake.
+# models to try per industry; must match what seed_snowflake.py trained
 MODEL_CANDIDATES = {
     "finance": ["xgboost", "lightgbm", "logistic_regression"],
     "healthcare": ["xgboost", "lightgbm", "logistic_regression"],

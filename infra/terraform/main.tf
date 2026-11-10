@@ -1,5 +1,4 @@
-# Sets up the Snowflake side of the project: a warehouse, a database, and a
-# role the app connects as. Run with: terraform init && terraform plan
+# Snowflake warehouse, database and app role. Run: terraform init && terraform plan
 
 terraform {
   required_version = ">= 1.7"

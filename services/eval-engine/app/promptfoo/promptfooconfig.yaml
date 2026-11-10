@@ -1,5 +1,4 @@
-# Red-team config for the agent. Run with:
-#   promptfoo redteam eval -c app/promptfoo/promptfooconfig.yaml
+# Red-team config. Run: promptfoo redteam eval -c app/promptfoo/promptfooconfig.yaml
 
 description: "AgentEvalOS agent red-team suite"
 

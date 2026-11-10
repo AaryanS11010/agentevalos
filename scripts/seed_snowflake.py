@@ -1,8 +1,4 @@
-# Creates the Snowflake tables, fills them with fake finance/healthcare data,
-# trains a few simple models on that data, and uploads the models to Snowflake
-# so the agent has something to test against.
-#
-# Usage: python scripts/seed_snowflake.py
+# Creates the tables, fills them with fake data, trains the models and uploads them to Snowflake
 from __future__ import annotations
 
 import sys
@@ -82,7 +78,7 @@ def main() -> None:
             cur.execute(f"CREATE SCHEMA IF NOT EXISTS {settings.snowflake_database}.{industry}")
             cur.execute(f"CREATE OR REPLACE TABLE {table} ({feature_ddl}, LABEL INT, SENSITIVE_GROUP INT)")
 
-            # fixed seeds: Python's hash() of a string changes every run, which made the data differ each time
+            # fixed seeds so the data is identical on every run
             df = _fake_dataset(n=2000, seed=SEEDS[industry])
             write_pandas(conn, df, table_name="BENCHMARK_DATASET", database=settings.snowflake_database, schema=industry)
             print(f"loaded {len(df)} rows into {table}")

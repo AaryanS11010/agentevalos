@@ -1,5 +1,4 @@
-# Scores a model on credit risk (predicting default): how well it separates
-# good vs. bad borrowers, how calibrated it is, and whether it's fair across groups.
+# Scores credit-risk models: discrimination, calibration and fairness
 from __future__ import annotations
 
 from typing import Any

@@ -1,5 +1,4 @@
-# POST /cortex/runs runs the same benchmark as POST /runs, but on Snowflake Cortex
-# Agents instead of LangGraph. Runs are saved in the same Postgres tables.
+# POST /cortex/runs: the same benchmark as /runs, run on Snowflake Cortex Agents
 from __future__ import annotations
 
 import logging

@@ -1,5 +1,4 @@
-# Talks to Snowflake: creates the warehouse/tables if they don't exist yet, and
-# reads/writes the model leaderboard.
+# Snowflake setup (warehouse, tables) and leaderboard read/write
 from __future__ import annotations
 
 from collections.abc import Iterator

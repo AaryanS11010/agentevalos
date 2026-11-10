@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Sets up everything: a venv for each Python service, and npm install for the console.
-# Safe to run more than once.
+# Sets up a venv per Python package and runs npm install (safe to re-run)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -1,6 +1,4 @@
-# Uses an LLM as a judge to check the agent's written explanations make sense
-# and match the numbers it was given. Run with:
-#   pytest app/deepeval_suites/agent_regression_suite.py
+# LLM-judge check that the agent's explanation matches its numbers (run with pytest)
 from __future__ import annotations
 
 import os
