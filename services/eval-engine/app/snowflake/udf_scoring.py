@@ -1,9 +1,16 @@
-# This is registered as a stored procedure that runs INSIDE Snowflake: it loads
-# a saved model file from a stage, scores the dataset, and returns the predictions.
-# It has to be self-contained (no imports from the rest of this app) because
-# Snowflake runs it in its own sandbox and only has stdlib + a few packages.
+# Two stored procedures that run INSIDE Snowflake. Both load a saved model file from
+# a stage and score a dataset:
 #
-# Deploy/redeploy it with: python -m app.snowflake.udf_scoring
+#   RUN_INDUSTRY_EVAL     returns the raw predictions (one entry per row). Used by the
+#                         LangGraph agent, which scores them in the eval-engine.
+#   RUN_INDUSTRY_METRICS  returns only a small summary (AUROC, calibration, fairness,
+#                         impact score). Used by the Cortex agent, so no row-level
+#                         data ever leaves Snowflake.
+#
+# They have to be self-contained (no imports from the rest of this app) because
+# Snowflake runs them in its own sandbox and only has stdlib + a few packages.
+#
+# Deploy/redeploy them with: python -m app.snowflake.udf_scoring
 from __future__ import annotations
 
 import json
@@ -13,6 +20,19 @@ from pathlib import Path
 from snowflake.snowpark import Session
 
 RESERVED_COLUMNS = {"LABEL", "SENSITIVE_GROUP"}
+
+# The only datasets the metrics procedure will touch. Enforced here, in the warehouse,
+# so an agent can't be talked into scoring anything else.
+ALLOWED_DATASETS = {"FINANCE.BENCHMARK_DATASET", "HEALTHCARE.BENCHMARK_DATASET"}
+
+# Must match INDUSTRY_WEIGHTS in app/evaluators/tabular_model_bench.py and the
+# fairness thresholds in the industry evaluators. A custom eval (metric_parity in
+# agentevalos_sdk/custom_evals.py) checks that the two stay in agreement.
+IMPACT_WEIGHTS = {
+    "finance": {"discrimination": 0.5, "calibration": 0.2, "fairness": 0.3},
+    "healthcare": {"discrimination": 0.35, "calibration": 0.35, "fairness": 0.3},
+}
+FAIRNESS_THRESHOLDS = {"finance": 0.10, "healthcare": 0.08}
 
 
 def _load_staged_model(session: Session, industry: str, model_name: str):
@@ -24,23 +44,22 @@ def _load_staged_model(session: Session, industry: str, model_name: str):
         return joblib.load(Path(tmp_dir) / filename)
 
 
-def run_industry_eval_proc(session: Session, industry: str, model_name: str, dataset_ref: str) -> str:
-    """Runs in Snowflake as AGENTEVALOS.EVALS.RUN_INDUSTRY_EVAL. Loads the dataset,
-    scores it with the staged model, and returns raw predictions as JSON.
-    """
+def _predict(session: Session, industry: str, model_name: str, dataset_ref: str):
     pdf = session.table(dataset_ref).to_pandas()
-
     feature_cols = [c for c in pdf.columns if c not in RESERVED_COLUMNS]
     model = _load_staged_model(session, industry, model_name)
 
-    y_true = pdf["LABEL"].to_numpy()
     X = pdf[feature_cols].to_numpy()
-    y_score = (
-        model.predict_proba(X)[:, 1] if hasattr(model, "predict_proba") else model.predict(X)
-    )
+    y_score = model.predict_proba(X)[:, 1] if hasattr(model, "predict_proba") else model.predict(X)
     y_pred = (y_score >= 0.5).astype(int)
+    y_true = pdf["LABEL"].to_numpy()
     sensitive = pdf["SENSITIVE_GROUP"].to_numpy() if "SENSITIVE_GROUP" in pdf.columns else None
+    return y_true, y_pred, y_score, sensitive
 
+
+def run_industry_eval_proc(session: Session, industry: str, model_name: str, dataset_ref: str) -> str:
+    """AGENTEVALOS.EVALS.RUN_INDUSTRY_EVAL: returns raw predictions as JSON."""
+    y_true, y_pred, y_score, sensitive = _predict(session, industry, model_name, dataset_ref)
     return json.dumps(
         {
             "model_name": model_name,
@@ -52,33 +71,119 @@ def run_industry_eval_proc(session: Session, industry: str, model_name: str, dat
     )
 
 
+def run_industry_metrics_proc(session: Session, industry: str, model_name: str, dataset_ref: str) -> str:
+    """AGENTEVALOS.EVALS.RUN_INDUSTRY_METRICS: scores the model inside Snowflake and
+    returns only aggregate numbers as JSON. Never returns row-level data.
+    """
+    import numpy as np
+    from sklearn.calibration import calibration_curve
+    from sklearn.metrics import roc_auc_score
+
+    industry = industry.lower()
+    if industry not in IMPACT_WEIGHTS:
+        raise ValueError(f"unknown industry: {industry}")
+    if dataset_ref.upper() not in ALLOWED_DATASETS or not dataset_ref.upper().startswith(industry.upper() + "."):
+        raise ValueError(f"dataset not allowed for {industry}: {dataset_ref}")
+
+    y_true, y_pred, y_score, sensitive = _predict(session, industry, model_name, dataset_ref)
+
+    auroc = float(roc_auc_score(y_true, y_score))
+    brier = float(np.mean((y_score - y_true) ** 2))
+    prob_true, prob_pred = calibration_curve(y_true, y_score, n_bins=10, strategy="uniform")
+    ece = float(np.mean(np.abs(prob_true - prob_pred)))
+
+    order = np.argsort(y_score)
+    yt = y_true[order]
+    n_pos, n_neg = yt.sum(), len(yt) - yt.sum()
+    ks = 0.0
+    if n_pos and n_neg:
+        ks = float(np.max(np.abs(np.cumsum(yt) / n_pos - np.cumsum(1 - yt) / n_neg)))
+
+    gap = 0.0
+    if sensitive is not None:
+        rates = [y_pred[sensitive == g].mean() for g in np.unique(sensitive)]
+        gap = float(max(rates) - min(rates)) if len(rates) > 1 else 0.0
+
+    # finance is judged on brier score, healthcare on expected calibration error
+    calibration_error = brier if industry == "finance" else ece
+    weights = IMPACT_WEIGHTS[industry]
+    score = (
+        weights["discrimination"] * auroc
+        + weights["calibration"] * max(0.0, 1 - calibration_error)
+        + weights["fairness"] * max(0.0, 1 - gap)
+    )
+    threshold = FAIRNESS_THRESHOLDS[industry]
+
+    return json.dumps(
+        {
+            "model_name": model_name,
+            "industry": industry,
+            "dataset_ref": dataset_ref.upper(),
+            "n_rows": len(y_true),
+            "auroc": round(auroc, 4),
+            "ks_statistic": round(ks, 4),
+            "brier_score": round(brier, 4),
+            "expected_calibration_error": round(ece, 4),
+            "fairness_gap": round(gap, 4),
+            "fairness_threshold": threshold,
+            "fairness_ok": bool(gap <= threshold),
+            "impact_score": round(float(min(max(score, 0.0), 1.0)), 4),
+        }
+    )
+
+
+PACKAGES = ["pandas", "pyarrow", "numpy", "scikit-learn", "xgboost", "lightgbm", "joblib"]
+
+
 def register(session: Session) -> None:
-    """Registers run_industry_eval_proc as a stored procedure in Snowflake."""
+    """Registers both stored procedures in Snowflake."""
     from snowflake.snowpark.types import StringType
 
     from app.config import settings
 
     # Snowflake needs this app's source files uploaded so it can find the
-    # function when it re-imports this module to run the procedure.
+    # functions when it re-imports this module to run the procedures.
     app_dir = Path(__file__).resolve().parents[1]
+    schema = f"{settings.snowflake_database}.{settings.snowflake_schema}"
 
-    session.sproc.register(
-        func=run_industry_eval_proc,
-        name=f"{settings.snowflake_database}.{settings.snowflake_schema}.RUN_INDUSTRY_EVAL",
-        return_type=StringType(),
-        input_types=None,
-        packages=["pandas", "pyarrow", "numpy", "scikit-learn", "xgboost", "lightgbm", "joblib"],
-        imports=[str(app_dir)],
-        is_permanent=True,
-        stage_location=f"@{settings.snowflake_database}.{settings.snowflake_schema}.UDF_STAGE",
-        replace=True,
-    )
+    for func, name in [
+        (run_industry_eval_proc, "RUN_INDUSTRY_EVAL"),
+        (run_industry_metrics_proc, "RUN_INDUSTRY_METRICS"),
+    ]:
+        session.sproc.register(
+            func=func,
+            name=f"{schema}.{name}",
+            return_type=StringType(),
+            input_types=None,
+            packages=PACKAGES,
+            imports=[str(app_dir)],
+            is_permanent=True,
+            stage_location=f"@{schema}.UDF_STAGE",
+            replace=True,
+            # Cortex calls tools with named arguments (INDUSTRY, MODEL_NAME, ...), but
+            # Snowpark names parameters arg1, arg2, ... unless told to keep ours.
+            preserve_parameter_names=True,
+        )
+
+
+def grant_to_agent_role(session: Session, role: str = "AGENT_SDK_ROLE") -> None:
+    """Lets the Cortex agent's role call the metrics procedure (and only that one)."""
+    from app.config import settings
+
+    schema = f"{settings.snowflake_database}.{settings.snowflake_schema}"
+    session.sql(
+        f"GRANT USAGE ON PROCEDURE {schema}.RUN_INDUSTRY_METRICS(VARCHAR, VARCHAR, VARCHAR) TO ROLE {role}"
+    ).collect()
 
 
 if __name__ == "__main__":
     from app.config import settings
     from app.snowflake.client import get_snowpark_session
 
+    schema = f"{settings.snowflake_database}.{settings.snowflake_schema}"
     with get_snowpark_session() as session:
+        # Snowpark can reuse a stale upload of this app's files, so clear the stage first.
+        session.sql(f"REMOVE @{schema}.UDF_STAGE").collect()
         register(session)
-    print(f"Registered {settings.snowflake_database}.{settings.snowflake_schema}.RUN_INDUSTRY_EVAL")
+        grant_to_agent_role(session)
+    print(f"Registered {schema}.RUN_INDUSTRY_EVAL and {schema}.RUN_INDUSTRY_METRICS")

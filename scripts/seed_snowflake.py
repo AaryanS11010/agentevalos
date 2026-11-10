@@ -22,6 +22,7 @@ from app.snowflake.udf_scoring import register as register_scoring_proc
 FEATURE_COLUMNS = [f"FEATURE_{i}" for i in range(6)]
 # has to match the model names the agent tries in app/graph/nodes.py
 MODEL_NAMES = ["logistic_regression", "xgboost", "lightgbm"]
+SEEDS = {"FINANCE": 1, "HEALTHCARE": 2}
 
 
 def _fake_dataset(n: int, seed: int) -> pd.DataFrame:
@@ -81,7 +82,8 @@ def main() -> None:
             cur.execute(f"CREATE SCHEMA IF NOT EXISTS {settings.snowflake_database}.{industry}")
             cur.execute(f"CREATE OR REPLACE TABLE {table} ({feature_ddl}, LABEL INT, SENSITIVE_GROUP INT)")
 
-            df = _fake_dataset(n=2000, seed=hash(industry) % 1000)
+            # fixed seeds: Python's hash() of a string changes every run, which made the data differ each time
+            df = _fake_dataset(n=2000, seed=SEEDS[industry])
             write_pandas(conn, df, table_name="BENCHMARK_DATASET", database=settings.snowflake_database, schema=industry)
             print(f"loaded {len(df)} rows into {table}")
 

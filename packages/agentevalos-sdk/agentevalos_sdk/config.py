@@ -14,6 +14,8 @@ class SharedSettings(BaseSettings):
     snowflake_account: str = ""
     snowflake_user: str = ""
     snowflake_password: str = ""
+    # programmatic access token, used by the Cortex agent (not by the connector)
+    snowflake_pat: str = ""
     snowflake_role: str = "AGENTEVALOS_APP_ROLE"
     snowflake_warehouse: str = "AGENTEVALOS_WH"
     snowflake_database: str = "AGENTEVALOS"

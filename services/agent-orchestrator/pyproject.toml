@@ -9,6 +9,8 @@ dependencies = [
     # it's installed editable as a separate step by scripts/bootstrap.sh and CI
     # before this package, so a plain name requirement resolves against it.
     "agentevalos-sdk",
+    # Snowflake Cortex Agents client (preview, pre-1.0): see agentevalos_sdk/cortex_agent.py
+    "snowflake-cortex-agent-sdk>=0.0.3",
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
     "langgraph>=0.2.20",

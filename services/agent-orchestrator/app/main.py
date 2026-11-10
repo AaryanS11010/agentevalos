@@ -6,7 +6,7 @@ from agentevalos_sdk.otel_setup import instrument_fastapi
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import routes_health, routes_runs
+from app.api import routes_cortex, routes_health, routes_runs
 from app.config import settings
 from app.db.session import init_db
 from app.mcp.registry import close_registry, init_registry
@@ -33,3 +33,4 @@ instrument_fastapi(app, settings.service_name)
 
 app.include_router(routes_health.router)
 app.include_router(routes_runs.router)
+app.include_router(routes_cortex.router)
